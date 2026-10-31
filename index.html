@@ -1857,7 +1857,11 @@ const bp=k=>BOOKPG[k]?`<span class="bookpg">📖 tr. ${BOOKPG[k]}</span>`:"";
 /* ===================== CODE HỌC (lưu tiến trình theo code) ===================== */
 const CODE_KEY=KEY+"-code";
 let CODE=null,CODE_ID=null,DBP=null,saveT=null,saving=false,pend=false,SYNC="ok",READONLY=false;
-function getDB(){if(!DBP)DBP=Promise.resolve(window.SYNC_URL&&/^https:\/\/script\.google\.com\//.test(window.SYNC_URL)?gsDB(window.SYNC_URL):null);return DBP;}
+function getDB(){if(!DBP)DBP=Promise.resolve(window.SYNC_URL&&/^https:\/\/script\.google\.com\//.test(window.SYNC_URL)?gsDB(window.SYNC_URL):lsDB());return DBP;}
+function lsDB(){const K="tteoktalk-localdb-";return {local:true,doc(path){const id=path.split("/")[1];return {
+  async get(){let v=null;try{v=JSON.parse(localStorage.getItem(K+id)||"null");}catch(e){}return {exists:!!v,data:()=>v||{}};},
+  async set(d){try{localStorage.setItem(K+id,JSON.stringify({s:d.s,t:d.t}));}catch(e){throw new Error("Máy này không cho lưu dữ liệu");}}
+};}};}
 function gsDB(url){return {doc(path){const id=path.split("/")[1];return {
   async get(){const r=await fetch(url+"?id="+encodeURIComponent(id),{redirect:"follow"});const j=await r.json();if(!j.ok)throw new Error(j.err||"get");return {exists:!!j.found,data:()=>({s:j.s,t:j.t})};},
   async set(d){const r=await fetch(url,{method:"POST",redirect:"follow",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({id,s:d.s,t:d.t})});const j=await r.json();if(!j.ok)throw new Error(j.err||"set");}
@@ -1944,7 +1948,7 @@ async function openCode(c,silent){
   const db=await getDB();
   if(!db)return "Chưa kết nối được chỗ lưu code. Kiểm tra mạng rồi mở lại trang, hoặc học thử không lưu.";
   let snap;
-  try{const id=await codeId(c);snap=await codeRef(db,id).get();if(!snap.exists)return "Không tìm thấy code "+c+". Kiểm tra lại từng ký tự, hoặc quay lại để tạo code mới.";
+  try{const id=await codeId(c);snap=await codeRef(db,id).get();if(!snap.exists){if(db.local||(typeof ADMIN_CODE!=="undefined"&&c===ADMIN_CODE))snap={exists:true,data:()=>({s:"{}"})};else return "Không tìm thấy code "+c+". Kiểm tra lại từng ký tự, hoặc quay lại để tạo code mới.";}
     const d=snap.data();let s={};try{s=JSON.parse(d.s||"{}");}catch(e){}
     const th=S.theme;S=Object.assign(JSON.parse(S_DEF),s);if(th)S.theme=th;const needC=S._c!==c;
     CODE=c;CODE_ID=id;READONLY=false;SYNC="ok";
